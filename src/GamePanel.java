@@ -16,6 +16,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.time.Instant;
 import java.time.Duration;
 import java.util.ArrayList;
+
+import javax.swing.ImageIcon;
 import javax.swing.JButton;
 
 public class GamePanel extends JPanel implements Runnable, KeyListener {
@@ -24,6 +26,38 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 		GAME_OVER,
 		PAUSED,
 		RUNNING
+	}
+
+	private class Explosion {
+		private Image image;
+		private int x, y;
+		private long startTime;
+		private boolean finished = false;
+    	private static final int DURATION = 560; // 0.56 segundo
+		
+		public Explosion(int x, int y) {
+			this.image = new ImageIcon("res/images/explosion.gif").getImage();
+			this.x = x;
+			this.y = y;
+			this.startTime = System.currentTimeMillis();
+		}
+	
+		public void update() {
+    	    // Verifica se a explosão já durou o tempo suficiente
+			if (System.currentTimeMillis() - startTime >= DURATION) {
+				finished = true;
+			}
+		}
+	
+		public void draw(Graphics2D g2) {
+			if (!finished) {
+				g2.drawImage(image, x, y, graphics.gifWidth, graphics.gifHeight, null);
+			}
+		}
+	
+		public boolean isFinished() {
+			return finished;
+		}
 	}
 	
 	private final int screenWidth = 800;
@@ -34,6 +68,8 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 	private float delta = 0;
 	private int score = 0;
 
+	private boolean playerDead = false;
+
 	private Thread gameThread;
 	private final Random random;
 	
@@ -43,6 +79,10 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 	private final Player player;
 	private final CopyOnWriteArrayList<Enemy> enemies;
 	private final CopyOnWriteArrayList<Bullet> bullets;
+
+	private ArrayList<Explosion> activeExplosions;
+
+	private ArrayList<Enemy> enemiesToRemove;
 	
 	private final ResourceManager resources;
 	private final GraphicsManager graphics;
@@ -80,6 +120,8 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 		this.player.pos.x -= this.player.size.x/2;
 		this.enemies = new CopyOnWriteArrayList<>();
 		this.bullets = new CopyOnWriteArrayList<>();
+		this.enemiesToRemove = new ArrayList<>();
+		this.activeExplosions = new ArrayList<>();
 		
 		dummyEnemy = new Enemy(
 			new Vec2D(screenWidth, screenHeight),
@@ -184,12 +226,36 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 			nextSpawnTime = random.nextFloat() + 0.5f;
 		}
 
+
 		checkCollisions();
+
+		if (!enemiesToRemove.isEmpty()) {
+			for (Enemy enemy : enemiesToRemove) {
+				Vec2D objCenter = enemy.getCenter();
+
+				int posX = (int) objCenter.x - (graphics.gifWidth / 2);
+				int posY = (int) objCenter.y - (graphics.gifHeight / 2);
+
+				activeExplosions.add(new Explosion(posX, posY));
+			}
+
+			enemies.removeAll(enemiesToRemove);
+			enemiesToRemove.clear();
+		}
+
+		Iterator<Explosion> iterator = activeExplosions.iterator();
+		while (iterator.hasNext()) {
+			Explosion explosion = iterator.next();
+			explosion.update();
+
+			if (explosion.isFinished()) {
+				iterator.remove();
+			}
+		}
 	}
 
 	private void checkCollisions() {
 		ArrayList<Bullet> bulletsToRemove = new ArrayList<>();
-		ArrayList<Enemy> enemiesToRemove = new ArrayList<>();
 		
 		for (Bullet bullet : bullets) {
 			for (Enemy enemy : enemies) {
@@ -207,6 +273,7 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 			if (player.collides(enemy)) {
 				if (player.takeDamage()) {
 					System.out.println("Fim de Jogo!");
+					playerDead = true;
 					status = GameStatus.GAME_OVER;
 				}
 				else {
@@ -217,7 +284,6 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 		}
 
 		bullets.removeAll(bulletsToRemove);
-		enemies.removeAll(enemiesToRemove);
 	}
 
 	@Override
@@ -236,6 +302,26 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 		int exitTextWidth = g2.getFontMetrics().stringWidth(exitText);
 		g2.drawString(exitText, screenWidth - exitTextWidth - 10, 20);
 
+		Iterator<Explosion> iterator = activeExplosions.iterator();
+		while (iterator.hasNext()) {
+			Explosion explosion = iterator.next();
+			explosion.update();
+
+			if (explosion.isFinished()) {
+				iterator.remove();
+			}
+		}
+
+		if (!activeExplosions.isEmpty()) {
+			for (Explosion explosion : activeExplosions) {
+				explosion.update();
+
+				if (explosion.isFinished()) activeExplosions.remove(explosion);
+			}
+
+			for (Explosion explosion : activeExplosions) explosion.draw(g2);
+		}
+
 		graphics.drawObjects(g2, new ArrayList(bullets));
 		graphics.drawObjects(g2, new ArrayList(enemies));
 		graphics.drawObject(g2, player);
@@ -246,6 +332,8 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 		for (int i = player.life, j = 10; i > 0; i--, j += 50) {
 			g2.drawImage(resources.getImage("life"), j, 0, null);
 		}
+
+		if (playerDead) graphics.drawExplosion(g2, player);
 
 		// Menu de pause
 		if (status == GameStatus.PAUSED) {
@@ -263,6 +351,7 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 		bullets.clear();
 		enemies.clear();
 		player.resetLife();
+		playerDead = false;
 		status = GameStatus.RUNNING;
 	}
 

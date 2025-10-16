@@ -2,8 +2,11 @@
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics2D;
+import java.awt.Image;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
+
+import javax.swing.ImageIcon;
 
 /* Responsável por:
 - Dsenhar os objetos
@@ -20,6 +23,9 @@ public class GraphicsManager {
 	
 	public final Vec2D screenSize;
 	public final Vec2D screenCenter;
+
+	public final int gifWidth = 128;
+	public final int gifHeight = 128;
 	
 	private final BufferedImage backgroundImage;
 	private final Color backgroundColor;
@@ -128,5 +134,15 @@ public class GraphicsManager {
 	
 	public void drawGameOverMenu(Graphics2D g2, int selectedIndex) {
 		drawGenericMenu(g2, "Game Over", gameOverOptions, selectedIndex);
+	}
+
+    public void drawExplosion(Graphics2D g2, GameObject obj) {
+		Image explosion = new ImageIcon("res/images/explosion.gif").getImage();
+		Vec2D objCenter = obj.getCenter();
+
+		int posX = (int) objCenter.x - (gifWidth / 2);
+		int posY = (int) objCenter.y - (gifHeight / 2);
+
+		g2.drawImage(explosion, posX, posY, gifWidth, gifHeight, null);
 	}
 }

@@ -31,7 +31,7 @@ public class Enemy extends GameObject {
 		};
 	}
 	
-	public void makeIvencible(float seconds) {
+	public void makeInvincible(float seconds) {
 		iFrameSeconds = seconds;
 	}
 }
