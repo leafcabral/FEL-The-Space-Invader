@@ -9,6 +9,7 @@ import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.util.Iterator;
 import java.util.Random;
+import javax.swing.Timer;
 import java.awt.Font;
 import java.awt.image.BufferedImage; // Importa para trabalhar com imagens.
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -31,28 +32,24 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 	private class Explosion {
 		private Image image;
 		private int x, y;
-		private long startTime;
+		private static final int DURATION = 500; // 0.56 segundo
 		private boolean finished = false;
-    	private static final int DURATION = 560; // 0.56 segundo
 		
 		public Explosion(int x, int y) {
 			this.image = new ImageIcon("res/images/explosion.gif").getImage();
 			this.x = x;
 			this.y = y;
-			this.startTime = System.currentTimeMillis();
-		}
-	
-		public void update() {
-    	    // Verifica se a explosão já durou o tempo suficiente
-			if (System.currentTimeMillis() - startTime >= DURATION) {
+
+			Timer timer = new javax.swing.Timer(DURATION, e -> {
 				finished = true;
-			}
+			});
+
+			timer.setRepeats(false);
+			timer.start();
 		}
 	
 		public void draw(Graphics2D g2) {
-			if (!finished) {
-				g2.drawImage(image, x, y, graphics.gifWidth, graphics.gifHeight, null);
-			}
+			if (!finished) g2.drawImage(image, x, y, graphics.gifWidth, graphics.gifHeight, null);
 		}
 	
 		public boolean isFinished() {
@@ -82,7 +79,7 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 
 	private ArrayList<Explosion> activeExplosions;
 
-	private ArrayList<Enemy> enemiesToRemove;
+	private CopyOnWriteArrayList<Enemy> enemiesToRemove;
 	
 	private final ResourceManager resources;
 	private final GraphicsManager graphics;
@@ -120,7 +117,7 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 		this.player.pos.x -= this.player.size.x/2;
 		this.enemies = new CopyOnWriteArrayList<>();
 		this.bullets = new CopyOnWriteArrayList<>();
-		this.enemiesToRemove = new ArrayList<>();
+		this.enemiesToRemove = new CopyOnWriteArrayList<>();
 		this.activeExplosions = new ArrayList<>();
 		
 		dummyEnemy = new Enemy(
@@ -226,7 +223,6 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 			nextSpawnTime = random.nextFloat() + 0.5f;
 		}
 
-
 		checkCollisions();
 
 		if (!enemiesToRemove.isEmpty()) {
@@ -244,14 +240,13 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 		}
 
 		Iterator<Explosion> iterator = activeExplosions.iterator();
-		while (iterator.hasNext()) {
-			Explosion explosion = iterator.next();
-			explosion.update();
+        while (iterator.hasNext()) {
+            Explosion explosion = iterator.next();
 
-			if (explosion.isFinished()) {
-				iterator.remove();
-			}
-		}
+            if (explosion.isFinished()) {
+                iterator.remove();
+            }
+        }
 	}
 
 	private void checkCollisions() {
@@ -302,25 +297,10 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 		int exitTextWidth = g2.getFontMetrics().stringWidth(exitText);
 		g2.drawString(exitText, screenWidth - exitTextWidth - 10, 20);
 
-		Iterator<Explosion> iterator = activeExplosions.iterator();
-		while (iterator.hasNext()) {
-			Explosion explosion = iterator.next();
-			explosion.update();
-
-			if (explosion.isFinished()) {
-				iterator.remove();
-			}
-		}
-
 		if (!activeExplosions.isEmpty()) {
-			for (Explosion explosion : activeExplosions) {
-				explosion.update();
-
-				if (explosion.isFinished()) activeExplosions.remove(explosion);
-			}
-
 			for (Explosion explosion : activeExplosions) explosion.draw(g2);
 		}
+
 
 		graphics.drawObjects(g2, new ArrayList(bullets));
 		graphics.drawObjects(g2, new ArrayList(enemies));

@@ -1,3 +1,6 @@
+# Bugs conhecidos
+- A animação de explosão dos inimigos acaba repetindo alguns frames da explosão anterior/reiniciando logo após o fim
+
 # O que será adicionado
 
 ## Essencial para fazer o resto
